@@ -1,6 +1,8 @@
 # KAAMBA — Thesis Repository
 
-This repository contains the complete codebase and pre-computed results for the thesis project **"Kaamba: Gaze Prediction with Mamba-based Neural Networks"**. It is organised as a [uv workspace](https://docs.astral.sh/uv/concepts/projects/workspaces/) with the KAAMBA package as its sole member.
+This repository contains the complete codebase and pre-computed results for the thesis project **"Kaamba: Stimulus-Conditioned Generation of Raw
+Eye-Tracking Data with State Space
+Models"**. It is organised as a [uv workspace](https://docs.astral.sh/uv/concepts/projects/workspaces/) with the KAAMBA package as its sole member.
 
 ---
 
