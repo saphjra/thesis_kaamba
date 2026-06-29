@@ -1,0 +1,73 @@
+[build-system]
+
+requires = ["uv_build>=0.10.8,<0.11.0"]
+build-backend = "uv_build"
+
+
+[project]
+name = "kaamba"
+version = "0.6.0"
+description = "KAAMBA: Gaze Prediction using Mamba-based Neural Networks"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "KAAMBA Team"},
+]
+keywords = ["gaze-prediction", "eye-tracking", "deep-learning", "mamba"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies =[
+    "accelerate>=1.13.0",
+    "causal-conv1d==1.6.1",
+    "datasets>=4.7.0",
+    "einops>=0.8.2",
+    "mamba-ssm",
+    "matplotlib>=3.10.8",
+    "notebook>=7.5.4",
+    "opencv-python>=4.13.0.92",
+    "optuna>=4.8.0",
+    "polars>=1.38.1",
+    "pymovements==0.26.2",
+    "scipy>=1.15.3",
+    "timm>=1.0.25",
+    "torch==2.7.1",
+    "torchaudio==2.7.1",
+    "torchvision==0.22.1",
+    "transformers==5.3.0",
+    "uv-build>=0.10.8",
+    "wandb>=0.27.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["kaamba*"]
+
+[project.scripts]
+train = "kaamba.scripts.train_on_the_fly:main"
+
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
+username = "__token__"
+password = "pypi-AgENdGVzdC5weXBpLm9yZwIkMThhM2M1ZjYtMzMwYS00NDM3LTllYzctMmYxMTNmYzA5MzVlAAIqWzMsIjA2NWM3NDlhLTZiY2YtNGIxNS1hY2M2LWZiOTgzNWY3OTVkOCJdAAAGILzXvVghMrKEaz3b3qR8fBLTPzCVDORVt9km1IOGKPX_"
+
+[tool.uv.sources]
+causal-conv1d = { url = "https://github.com/Dao-AILab/causal-conv1d/releases/download/v1.6.1.post4/causal_conv1d-1.6.1+cu12torch2.7cxx11abiTRUE-cp310-cp310-linux_x86_64.whl" }
+mamba-ssm = { url = "https://github.com/state-spaces/mamba/releases/download/v2.3.0/mamba_ssm-2.3.0+cu12torch2.7cxx11abiTRUE-cp310-cp310-linux_x86_64.whl" }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.4",
+]
+
+
