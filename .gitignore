@@ -1,0 +1,34 @@
+/data/
+
+.idea/
+@"
+# datasets
+/data/
+
+# IDE
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+.venv/
+
+# Build / packaging
+dist/
+*.egg-info/
+
+# Linter cache
+.ruff_cache/
+
+# Lock files (repo-level; kaamba_repo has its own)
+uv.lock
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs (keep eval_results but not runtime logs)
+logs/
+"@ | Set-Content .gitignore

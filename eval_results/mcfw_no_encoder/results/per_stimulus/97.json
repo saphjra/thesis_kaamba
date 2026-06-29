@@ -1,0 +1,53 @@
+{
+  "fixation_duration": {
+    "ks_stat": 0.23565405926282823,
+    "p_value": 0.0015231646865981512,
+    "n_real": 593,
+    "n_fake": 70,
+    "real_mean": 151.13659359190555,
+    "fake_mean": 130.17142857142858,
+    "real_std": 64.86023286745636,
+    "fake_std": 52.30104381055381
+  },
+  "saccade_amplitude": {
+    "ks_stat": 0.5342365176110876,
+    "p_value": 7.7605493712283035e-59,
+    "n_real": 438,
+    "n_fake": 454,
+    "real_mean_deg": 4.331977977030468,
+    "fake_mean_deg": 10.42811174818007
+  },
+  "main_sequence": {
+    "real_r": 0.8378612399831709,
+    "fake_r": 0.884864137249038,
+    "pass": false
+  },
+  "intersaccadic_interval": {
+    "real_mean": 151.13659359190555,
+    "fake_mean": 130.17142857142858,
+    "real_var": 4206.849807620667,
+    "fake_var": 2735.399183673469,
+    "mean_err": 20.965165020476974
+  },
+  "fixation_density_map": {
+    "kl_divergence": 17.313962234092607,
+    "real_n_fixations": 593,
+    "fake_n_fixations": 70
+  },
+  "saccade_direction": {
+    "kl_divergence": 0.5887463403621527,
+    "ks_stat": 0.625,
+    "p_value": 0.08702408702408701,
+    "n_real": 8,
+    "n_fake": 8
+  },
+  "classifier_auc": {
+    "auc": NaN,
+    "pass": false,
+    "note": "too few valid rows after NaN removal"
+  },
+  "n_real_seqs": 45,
+  "n_fake_seqs": 45,
+  "stimulus": "97",
+  "time_s": 18.687673330307007
+}

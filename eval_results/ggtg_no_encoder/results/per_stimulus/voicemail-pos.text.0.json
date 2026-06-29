@@ -1,0 +1,52 @@
+{
+  "fixation_duration": {
+    "ks_stat": 0.1691256192307462,
+    "p_value": 1.667220966931312e-07,
+    "n_real": 729,
+    "n_fake": 458,
+    "real_mean": 195.89437585733882,
+    "fake_mean": 205.7052401746725,
+    "real_std": 84.13230865318936,
+    "fake_std": 145.09472291861195
+  },
+  "saccade_amplitude": {
+    "ks_stat": 0.30321350553788373,
+    "p_value": 8.657754355388164e-22,
+    "n_real": 388,
+    "n_fake": 807,
+    "real_mean_deg": 5.3306344611568,
+    "fake_mean_deg": 8.174444532029321
+  },
+  "main_sequence": {
+    "real_r": 0.7030245472527417,
+    "fake_r": 0.8917145104902937,
+    "pass": false
+  },
+  "intersaccadic_interval": {
+    "real_mean": 195.89437585733882,
+    "fake_mean": 205.7052401746725,
+    "real_var": 7078.2453593155215,
+    "fake_var": 21052.478618828776,
+    "mean_err": 9.810864317333682
+  },
+  "fixation_density_map": {
+    "kl_divergence": 18.91354082518678,
+    "real_n_fixations": 729,
+    "fake_n_fixations": 458
+  },
+  "saccade_direction": {
+    "kl_divergence": 0.5536803940594224,
+    "ks_stat": 0.25,
+    "p_value": 0.98010878010878,
+    "n_real": 8,
+    "n_fake": 8
+  },
+  "classifier_auc": {
+    "auc": 1.0,
+    "pass": false
+  },
+  "n_real_seqs": 7,
+  "n_fake_seqs": 8,
+  "stimulus": "voicemail-pos.text.0",
+  "time_s": 1922.6318516731262
+}

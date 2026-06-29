@@ -1,0 +1,2 @@
+[console_scripts]
+train = kaamba.scripts.train_on_the_fly:main
