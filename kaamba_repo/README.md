@@ -1,4 +1,4 @@
-# KAAMBA: Gaze Prediction with Mamba-based Neural Networks
+# KAAMBA:Stimulus-Conditioned Generation of Raw Eye-Tracking Data with State Space Models
 This repository accompanies a master's thesis and contains the full training, evaluation, and inference pipeline.
 
 ---
