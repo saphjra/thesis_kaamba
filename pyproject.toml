@@ -1,7 +1,8 @@
 [project]
 name = "thesis"
 version = "0.1.0"
-description = "Add your description here"
+description = "Repository for the thesis project Kaamba: Stimulus-Conditioned Generation of Raw Eye-Tracking Data with State Space Models"
+readme = "README.md"
 requires-python = ">=3.10,<3.11"
 dependencies = [
     "datasets>=4.5.0",
