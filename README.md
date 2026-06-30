@@ -85,9 +85,6 @@ The `mamba-ssm` and `causal-conv1d` packages are pre-built CUDA 12 wheels (torch
 
 ### 3. Activate the environment
 
-```bash
-source .venv/bin/activate
-```
 
 > **Note on the pymovements version:** this project depends on a **custom development branch** of pymovements (`feat/download_stimulus_files`) that adds stimulus-image downloading support for mcfw-gaze. This branch is declared in `kaamba_repo/pyproject.toml` and installed automatically by `uv sync`. Do **not** substitute the PyPI release — the required APIs are not yet available there.
 
