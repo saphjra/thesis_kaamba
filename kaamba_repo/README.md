@@ -68,12 +68,6 @@ uv sync
 
 The `mamba-ssm` and `causal-conv1d` packages are pre-built CUDA 12 wheels (for `torch==2.7.1`, `cp310`, `linux_x86_64`) and are fetched automatically from GitHub Releases during `uv sync`. No manual wheel installation is needed.
 
-### 3. Activate the environment
-
-```bash
-source .venv/bin/activate
-```
-
 ---
 
 ## A Note on the pymovements Dependency
