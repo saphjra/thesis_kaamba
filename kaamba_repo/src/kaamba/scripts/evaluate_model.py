@@ -87,12 +87,6 @@ from kaamba.utils.eval_report import (
 from kaamba.utils.gaze_preprocessing import GazePreprocessor
 
 
-# ---------------------------------------------------------------------------
-# Model generators
-# ---------------------------------------------------------------------------
-
-# ── GMM model (kaamba.py) ────────────────────────────────────────────────────
-
 
 class GMMModelGenerator(SequenceGenerator):
     """Load a trained GMM checkpoint and generate via bivariate Gaussian sampling."""
@@ -181,8 +175,6 @@ class GMMModelGenerator(SequenceGenerator):
                 device=device,
             )  # (N, gen_len, 2)
 
-
-# ── Image loading helper ─────────────────────────────────────────────────────
 
 
 def _load_image_tensor(img_path: Path, device: str) -> torch.Tensor:
@@ -439,7 +431,7 @@ def evaluate_stimulus(
             "fake_n_fixations": len(fake_fix_df),
         }
 
-    # ── Saccade direction ─────────────────────────────────────────────────
+
     def _dir_hist(sac_df, n=8):
         if len(sac_df) == 0 or "angle_rad" not in sac_df.columns:
             return None
@@ -459,19 +451,18 @@ def evaluate_stimulus(
     else:
         direction = {"kl_divergence": float("nan"), "note": "insufficient saccades"}
 
-    # ── Classifier AUC ────────────────────────────────────────────────────
     def _feats(seqs):
         dx = np.diff(seqs, axis=1)
         speed = np.linalg.norm(dx, axis=-1)
         return np.concatenate(
             [
-                seqs[:, :, 0].mean(1, keepdims=True),
-                seqs[:, :, 1].mean(1, keepdims=True),
-                seqs[:, :, 0].std(1, keepdims=True),
-                seqs[:, :, 1].std(1, keepdims=True),
-                speed.mean(1, keepdims=True),
-                speed.std(1, keepdims=True),
-                speed.max(1, keepdims=True),
+                np.nanmean(seqs[:, :, 0], axis=1, keepdims=True),
+                np.nanmean(seqs[:, :, 1], axis=1, keepdims=True),
+                np.nanstd(seqs[:, :, 0], axis=1, keepdims=True),
+                np.nanstd(seqs[:, :, 1], axis=1, keepdims=True),
+                np.nanmean(speed, axis=1, keepdims=True),
+                np.nanstd(speed, axis=1, keepdims=True),
+                np.nanmax(speed, axis=1, keepdims=True),
             ],
             axis=1,
         )
