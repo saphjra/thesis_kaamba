@@ -23,13 +23,13 @@ class GazePreprocessor:
     """
 
     def __init__(
-        self,
-        threshold_factor: float = 6.0,  # ← the real sensitivity parameter (was: vel_threshold)
-        dispersion_threshold: float = 1.0,
-        min_fix_duration: int = 100,
-        min_sac_duration: int = 30,
-        vel_method: str = "fivepoint",
-        vel_threshold: float = 30.0,
+            self,
+            threshold_factor: float = 6.0,  # ← the real sensitivity parameter (was: vel_threshold)
+            dispersion_threshold: float = 1.0,
+            min_fix_duration: int = 100,
+            min_sac_duration: int = 30,
+            vel_method: str = "fivepoint",
+            vel_threshold: float = 30.,
     ):
         self.threshold_factor = threshold_factor
         self.dispersion_threshold = dispersion_threshold
@@ -37,7 +37,6 @@ class GazePreprocessor:
         self.min_sac_duration = min_sac_duration
         self.vel_method = vel_method
         self.vel_threshold = vel_threshold
-
     # ------------------------------------------------------------------
     # Dataset-level (all recordings at once)
     # ------------------------------------------------------------------
@@ -69,19 +68,11 @@ class GazePreprocessor:
                     minimum_duration=min_sac,
                 )
             except ValueError as e:
-                failed.append(
-                    (
-                        gaze.metadata.get("subject_id"),
-                        gaze.metadata.get("stimulus"),
-                        str(e),
-                    )
-                )
+                failed.append((gaze.metadata.get("subject_id"), gaze.metadata.get("stimulus"), str(e)))
 
         if failed:
-            print(
-                f"[preprocess] microsaccade detection failed for {len(failed)} recordings "
-                f"(likely zero-variance/corrupted segments): {failed[:3]}{'...' if len(failed) > 3 else ''}"
-            )
+            print(f"[preprocess] microsaccade detection failed for {len(failed)} recordings "
+                  f"(likely zero-variance/corrupted segments): {failed[:3]}{'...' if len(failed) > 3 else ''}")
 
         dataset.compute_event_properties(["amplitude", "dispersion", "peak_velocity"])
 
@@ -89,7 +80,7 @@ class GazePreprocessor:
     # Single Gaze object (fake sequences, per-recording re-detection)
     # ------------------------------------------------------------------
 
-    def apply_gaze(self, gaze: pm.Gaze, clear: bool = True) -> None:
+    def apply_gaze(self, gaze: pm.Gaze, clear: bool = True,  out_dir = "../output/gaze") -> None:
         """
         Run the shared pipeline on a single Gaze object in-place.
 
@@ -122,7 +113,8 @@ class GazePreprocessor:
         if n_saccades == 0:
             self._fill_saccades(gaze)
 
-        gaze.compute_event_properties(["amplitude", "dispersion", "peak_velocity"])
+        gaze.compute_event_properties(["amplitude", "dispersion", "peak_velocity","location"])
+       # gaze.save(dirpath=out_dir, save_events=True, save_samples=True)
 
     # ------------------------------------------------------------------
     # Internal helpers
