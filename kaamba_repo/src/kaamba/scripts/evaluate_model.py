@@ -59,13 +59,13 @@ import numpy as np
 import polars as pl
 import pymovements as pm
 import torch
+from pymovements.dataset.dataset_files import save_events
 from tqdm import tqdm
 
 # ---------------------------------------------------------------------------
 # Project imports
 # ---------------------------------------------------------------------------
-# NOTE: build_gaze_predictor is imported lazily inside GMMModelGenerator.__init__
-# to avoid loading mamba_ssm/triton (which require a CUDA driver) in non-model modes.
+#from kaamba.net.models.kaamba import build_gaze_predictor
 from kaamba.utils.baselines import (
     SequenceGenerator,
     SyntheticGenerator,
@@ -87,6 +87,12 @@ from kaamba.utils.eval_report import (
 from kaamba.utils.gaze_preprocessing import GazePreprocessor
 
 
+# ---------------------------------------------------------------------------
+# Model generators
+# ---------------------------------------------------------------------------
+
+# ── GMM model (kaamba.py) ────────────────────────────────────────────────────
+
 
 class GMMModelGenerator(SequenceGenerator):
     """Load a trained GMM checkpoint and generate via bivariate Gaussian sampling."""
@@ -98,10 +104,7 @@ class GMMModelGenerator(SequenceGenerator):
         device: str = "cpu",
         label: Optional[str] = None,
     ):
-        from kaamba.net.models.kaamba import (
-            build_gaze_predictor,
-        )  # lazy: needs CUDA/triton
-
+        from kaamba.net.models.kaamba import build_gaze_predictor
         self.device = device
         self.temperature = temperature
         ckpt = torch.load(checkpoint_path, map_location=device)
@@ -176,6 +179,8 @@ class GMMModelGenerator(SequenceGenerator):
             )  # (N, gen_len, 2)
 
 
+# ── Image loading helper ─────────────────────────────────────────────────────
+
 
 def _load_image_tensor(img_path: Path, device: str) -> torch.Tensor:
     """Load and resize an image to (1, 3, 224, 224)."""
@@ -211,7 +216,26 @@ _EMPTY_SAC = pl.DataFrame(
         "angle_rad": pl.Float64,
     }
 )
-
+def _concat_gazes(gazes: List[pm.Gaze], experiment) -> pm.Gaze:
+    """Merge per-participant Gaze objects into one, keyed by ``subject_id``."""
+    samples = pl.concat(
+        [
+            g.samples.with_columns(pl.lit(i).alias("subject_id"))
+            for i, g in enumerate(gazes)
+        ],
+        how="vertical",
+    )
+    events = pl.concat(
+        [
+            g.events.frame.with_columns(pl.lit(i).alias("subject_id"))
+            for i, g in enumerate(gazes)
+        ],
+        how="vertical",
+    )
+    merged = pm.Gaze(samples=samples, experiment=experiment,
+                     trial_columns="subject_id")
+    merged.events = pm.Events(events, trial_columns="subject_id")
+    return merged
 
 def _fix_df_from_events(
     ev_frame: pl.DataFrame, pos_arr: np.ndarray, time_arr: np.ndarray
@@ -431,7 +455,7 @@ def evaluate_stimulus(
             "fake_n_fixations": len(fake_fix_df),
         }
 
-
+    # ── Saccade direction ─────────────────────────────────────────────────
     def _dir_hist(sac_df, n=8):
         if len(sac_df) == 0 or "angle_rad" not in sac_df.columns:
             return None
@@ -451,18 +475,19 @@ def evaluate_stimulus(
     else:
         direction = {"kl_divergence": float("nan"), "note": "insufficient saccades"}
 
+    # ── Classifier AUC ────────────────────────────────────────────────────
     def _feats(seqs):
         dx = np.diff(seqs, axis=1)
         speed = np.linalg.norm(dx, axis=-1)
         return np.concatenate(
             [
-                np.nanmean(seqs[:, :, 0], axis=1, keepdims=True),
-                np.nanmean(seqs[:, :, 1], axis=1, keepdims=True),
-                np.nanstd(seqs[:, :, 0], axis=1, keepdims=True),
-                np.nanstd(seqs[:, :, 1], axis=1, keepdims=True),
-                np.nanmean(speed, axis=1, keepdims=True),
-                np.nanstd(speed, axis=1, keepdims=True),
-                np.nanmax(speed, axis=1, keepdims=True),
+                np.nanmean(seqs[:, :, 0], axis=1, keepdims=True), # mean x
+                np.nanmean(seqs[:, :, 1], axis=1, keepdims=True), # mean y
+                np.nanstd(seqs[:, :, 0], axis=1, keepdims=True),  # std x
+                np.nanstd(seqs[:, :, 1], axis=1, keepdims=True),  # std y
+                np.nanmean(speed, axis=1, keepdims=True),         # mean speed
+                np.nanstd(speed, axis=1, keepdims=True),          # std speed
+                np.nanmax(speed, axis=1, keepdims=True),          # max speed (peek vel)
             ],
             axis=1,
         )
@@ -525,7 +550,6 @@ def run_evaluation(
     extra_generators: Optional[List[SequenceGenerator]] = None,
     per_stimulus_plots: bool = False,
     scanpath_overview: bool = False,
-    rng_seed: int = 42,
 ) -> Dict:
     """
     Main evaluation loop.
@@ -550,9 +574,6 @@ def run_evaluation(
             extra.name:      {"seqs", "fix_df", "sac_df"},   # one per extra_generator
         }}
     """
-    np.random.seed(rng_seed)
-    torch.manual_seed(rng_seed)
-
     out_dir = Path(out_dir) / generator.name
     stim_dir = out_dir / "per_stimulus"
     stim_dir.mkdir(parents=True, exist_ok=True)
@@ -566,16 +587,14 @@ def run_evaluation(
 
     if dataset_name == "GGTG":
         # split_gaze_data must run before stimulus-based filtering is possible
-        # participant = subset.get("participant", None) if subset else None
-        # dataset.load(subset={"subject_id": participant}) if participant else dataset.load()
-        dataset.load()  # todo adapt to load only certain participants
+       # participant = subset.get("participant", None) if subset else None
+        #dataset.load(subset={"subject_id": participant}) if participant else dataset.load()
+        dataset.load() #todo adapt to load only certain participants
 
         dataset.split_gaze_data(by="stimulus")
         if subset and "stimulus" in subset:
             keep = set(subset["stimulus"])
-            dataset.gaze = [
-                g for g in dataset.gaze if g.metadata.get("stimulus") in keep
-            ]
+            dataset.gaze = [g for g in dataset.gaze if g.metadata.get("stimulus") in keep]
     else:
         dataset.load(subset=subset)
 
@@ -630,9 +649,6 @@ def run_evaluation(
 
     # ── Per-stimulus loop ─────────────────────────────────────────────────
     all_results = {}
-    extra_all_results: Dict[str, Dict] = {
-        eg.name: {} for eg in (extra_generators or [])
-    }
     _plot_cache = {}  # stores raw arrays for post-hoc plotting
     timing_total = 0.0
 
@@ -656,12 +672,16 @@ def run_evaluation(
                 )
                 fix_df = _fix_df_from_events(ev_frame.frame, pos_arr, time_arr)
                 sac_df = _sac_df_from_events(ev_frame.frame, pos_arr, time_arr)
+                gaze.save(dirpath=Path(out_dir) / "real" / stim_name, save_samples=True, save_events=True)
             except Exception as e:
                 print(
                     f"  [warn] {stim_name} / {gaze.metadata.get('subject_id')} "
                     f"event extraction failed: {e}"
                 )
+                gaze.save(dirpath=Path(out_dir) / "real" / stim_name, save_samples=True)
                 continue
+
+
 
             # whole recording per subject — pad to longest later
             real_norm_seqs.append(norm_arr)
@@ -671,6 +691,7 @@ def run_evaluation(
             # # step = max(1, gen_len // 2)  # 50 % overlap — richer real pool
             # for start in range(0, len(norm_arr) - gen_len + 1, step):
             #     real_norm_seqs.append(norm_arr[start : start + gen_len])
+
 
             all_real_fix.append(fix_df)
             all_real_sac.append(sac_df)
@@ -713,7 +734,7 @@ def run_evaluation(
         # ── Extract events from fake sequences ────────────────────────────
         all_fake_fix = []
         all_fake_sac = []
-
+        fake_gazes: List[pm.Gaze] = []
         for seq in fake_norm:  # (gen_len, 2) normalised
             px_vals = seq * np.array([scr_w_px, scr_h_px], dtype=float)  # denormalize
             g_fake = pm.Gaze(
@@ -730,19 +751,31 @@ def run_evaluation(
                 experiment=first_gaze.experiment,
             )
             try:
-                preprocessor.apply_gaze(g_fake)
+                preprocessor.apply_gaze(g_fake, out_dir=Path(out_dir)/ "fake" / stim_name)
                 pos_f = np.stack(g_fake.samples["position"].to_numpy())
                 time_f = g_fake.samples["time"].to_numpy()
                 fixations = g_fake.events.fixations
                 saccades = g_fake.events.saccades
                 all_fake_fix.append(_fix_df_from_events(fixations, pos_f, time_f))
                 all_fake_sac.append(_sac_df_from_events(saccades, pos_f, time_f))
+                fake_gazes.append(g_fake)
             except Exception as e:
                 tqdm.write(f"  [warn] fake event detection failed: {e}")
 
         fake_fix_df = pl.concat(all_fake_fix) if all_fake_fix else pl.DataFrame()
         fake_sac_df = pl.concat(all_fake_sac) if all_fake_sac else pl.DataFrame()
-
+        # ── Store synthetic events as ONE gaze object per stimulus ────────
+        if fake_gazes:
+            try:
+                merged = _concat_gazes(fake_gazes, first_gaze.experiment)
+                merged.save(
+                    dirpath=Path(out_dir) / "fake" / stim_name,
+                    save_events=True,
+                    save_samples=True,
+                   # extension="csv"
+                )
+            except Exception as e:
+                tqdm.write(f"  [warn] saving fake gaze for {stim_name} failed: {e}")
         # ── Run metrics ───────────────────────────────────────────────────
         metrics = evaluate_stimulus(
             real_seqs=real_arr,
@@ -790,7 +823,7 @@ def run_evaluation(
                         experiment=first_gaze.experiment,
                     )
                     try:
-                        preprocessor.apply_gaze(g_ex)
+                        preprocessor.apply_gaze(g_ex, out_dir=Path(out_dir)/ "extra" / stim_name)
                         pos_ex = np.stack(g_ex.samples["position"].to_numpy())
                         time_ex = g_ex.samples["time"].to_numpy()
                         ex_fix_list.append(
@@ -810,16 +843,6 @@ def run_evaluation(
                     "fix_df": extra_fix_df,
                     "sac_df": extra_sac_df,
                 }
-                ex_metrics = evaluate_stimulus(
-                    real_seqs=real_arr,
-                    fake_seqs=extra_norm,
-                    real_fix_df=real_fix_df,
-                    real_sac_df=real_sac_df,
-                    fake_fix_df=extra_fix_df,
-                    fake_sac_df=extra_sac_df,
-                )
-                ex_metrics["stimulus"] = stim_name
-                extra_all_results[extra_gen.name][stim_name] = ex_metrics
             except Exception as e:
                 tqdm.write(
                     f"  [warn] extra generator '{extra_gen.name}' failed for {stim_name}: {e}"
@@ -863,17 +886,6 @@ def run_evaluation(
     report_path.write_text(report)
     print(report)
     print(f"\n[eval] Results saved to {out_dir}")
-
-    # ── Comparison table (primary + all extra generators) ─────────────────
-    if extra_generators:
-        combined = {generator.name: all_results}
-        for eg in extra_generators:
-            if extra_all_results.get(eg.name):
-                combined[eg.name] = extra_all_results[eg.name]
-        baseline_names = "_vs_".join(eg.name for eg in extra_generators)
-        comparison_path = out_dir / f"comparison_vs_{baseline_names}.txt"
-        save_comparison_table(combined, comparison_path)
-        print(f"[eval] Comparison table → {comparison_path}")
 
     # ── Aggregate metric plots (always generated) ─────────────────────────
     plot_aggregate_metrics(
@@ -932,10 +944,7 @@ def run_multi_evaluation(
         results = run_evaluation(gen, dataset_name, root, out_dir, **kwargs)
         all_gen_results[gen.name] = results
 
-    gen_names = "_vs_".join(g.name for g in generators)
-    comparison_path = Path(out_dir) / f"comparison_{gen_names}.txt"
-    save_comparison_table(all_gen_results, comparison_path)
-    print(f"[eval] Comparison table → {comparison_path}")
+    save_comparison_table(all_gen_results, Path(out_dir) / "comparison.txt")
     return all_gen_results
 
 
@@ -963,21 +972,19 @@ def _load_config(path: str) -> dict:
 
 
 def _add_common_args(sp) -> None:
-    """Attach dataset / generation / event-detection flags dataset name (default: mcfw-gaze)")"""
+    """Attach dataset / generation / event-detection flags dataset name (default: mcfw-gaze)")
+   """
     # Dataset
 
     sp.add_argument(
-        "--root",
-        default=None,
-        help="Path to root directory, where pymovement data is located (or set via --config)",
-    )
+        "--root", default=None, help="Path to root directory, where pymovement data is located (or set via --config)")
 
     sp.add_argument("--dataset", default="mcfw-gaze", help="pymovements movements data")
     sp.add_argument(
         "--out_dir",
         default=None,
         help="Output root (default: <root>/../eval_results, i.e. sibling of the data folder). "
-        "A generator sub-dir is added automatically.",
+             "A generator sub-dir is added automatically.",
     )
     # Subset filters
     sp.add_argument(
@@ -1056,12 +1063,6 @@ def _add_common_args(sp) -> None:
         "--scanpath_overview",
         default=True,
         help="Also generate the tiled scanpath overview figure",
-    )
-    sp.add_argument(
-        "--rng_seed",
-        type=int,
-        default=42,
-        help="Global RNG seed for reproducible generation (default: 42)",
     )
 
 
@@ -1143,7 +1144,7 @@ Config file (--config)
         nargs="*",
         default=None,
         help="Stimulus IDs constituting the training set (for --also_empirical). "
-        "None → all stimuli.",
+             "None → all stimuli.",
     )
     _add_common_args(model_p)
 
@@ -1160,7 +1161,7 @@ Config file (--config)
     emp_p = sub.add_parser(
         "empirical",
         help="Training-distribution baseline — samples i.i.d. from the observed "
-        "coordinate distribution of the training subset",
+             "coordinate distribution of the training subset",
     )
     emp_p.add_argument(
         "--train_stimuli",
@@ -1201,12 +1202,7 @@ Config file (--config)
     )
     _add_common_args(cmp_p)
 
-    return p, {
-        "model": model_p,
-        "synthetic": syn_p,
-        "empirical": emp_p,
-        "compare": cmp_p,
-    }
+    return p, {"model": model_p, "synthetic": syn_p, "empirical": emp_p, "compare": cmp_p}
 
 
 def _build_subset(args) -> Optional[Dict]:
@@ -1223,7 +1219,6 @@ def _build_subset(args) -> Optional[Dict]:
 def test():
     """Quick smoke-test: synthetic baseline + empirical baseline side-by-side."""
     from kaamba.utils.baselines import test_baselines
-
     GGTG_TRAIN_STIM = [
         "blackout-neg.difficulty",
         "blackout-neg.interest",
@@ -1334,7 +1329,7 @@ def test():
         "practice.text.0",
         "practice.text.1",
         "prize-neg.difficulty",
-        "prize-neg.interest",
+        "prize-neg.interest"
     ]
     GGTG_EVAL_STIM = [
         "prize-zero.text.4",
@@ -1361,7 +1356,7 @@ def test():
         "voicemail-zero.text.0",
         "voicemail-zero.text.1",
         "voicemail-zero.text.2",
-        "voicemail-zero.text.3",
+        "voicemail-zero.text.3"
     ]
 
     # Run the lightweight baseline unit test first
@@ -1396,6 +1391,7 @@ def test():
         dataset_name="GGTG",
         root=_ROOT,
         train_subset={"stimulus": GGTG_TRAIN_STIM},
+
     )
     run_multi_evaluation(generators=[syn, emp], **_COMMON)
 
@@ -1420,8 +1416,7 @@ def main():
         # Apply config defaults only to the active subparser so that keys
         # that don't exist on a given subparser are silently ignored.
         mode_from_argv = next(
-            (a for a in _argv if a in {"model", "synthetic", "empirical", "compare"}),
-            None,
+            (a for a in _argv if a in {"model", "synthetic", "empirical", "compare"}), None
         )
         targets = (
             [subparsers[mode_from_argv]]
@@ -1466,7 +1461,6 @@ def main():
         device=args.device,
         per_stimulus_plots=args.per_stimulus_plots,
         scanpath_overview=args.scanpath_overview,
-        rng_seed=args.rng_seed,
     )
 
     def _make_empirical(label=None):
