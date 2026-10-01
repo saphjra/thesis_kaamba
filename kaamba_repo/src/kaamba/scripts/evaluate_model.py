@@ -203,6 +203,7 @@ _EMPTY_FIX = pl.DataFrame(
         "duration": pl.Int64,
         "cx_deg": pl.Float64,
         "cy_deg": pl.Float64,
+        "location": [pl.Float64, pl.Float64]
     }
 )
 _EMPTY_SAC = pl.DataFrame(
@@ -271,7 +272,7 @@ def _fix_df_from_events(
         ]
     )
     # Keep only the columns downstream code expects (drops dispersion etc.)
-    keep = ["name", "onset", "offset", "duration", "cx_deg", "cy_deg"]
+    keep = ["name", "onset", "offset", "duration", "cx_deg", "cy_deg" ,"location"]
     return result.select([c for c in keep if c in result.columns])
 
 
@@ -319,6 +320,7 @@ def _sac_df_from_events(
         "amplitude_deg",
         "peak_vel_deg_s",
         "angle_rad",
+        "location"
     ]
     return result.select([c for c in keep if c in result.columns])
 
@@ -519,6 +521,10 @@ def evaluate_stimulus(
             "note": "too few sequences for classifier",
         }
 
+        # ── Scasim ─────────────────────────────────────────────────
+
+
+
     return {
         "fixation_duration": fix_dur,
         "saccade_amplitude": sac_amp,
@@ -530,6 +536,7 @@ def evaluate_stimulus(
         "n_real_seqs": len(real_seqs),
         "n_fake_seqs": len(fake_seqs),
     }
+
 
 
 def run_evaluation(
